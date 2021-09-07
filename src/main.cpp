@@ -1,26 +1,33 @@
 
-#define SAMPLE_TIME        0.1   ///< Control loop in s
-#define RATIO              54    ///< Gear ratio of rotator gear box for V3.1 Satnogs
-#define MICROSTEP          8     ///< Set Microstep
-#define MIN_PULSE_WIDTH    20    ///< In microsecond for AccelStepper
-#define MAX_SPEED          3200  ///< In steps/s, consider the microstep, default 3200
-#define MAX_ACCELERATION   1600  ///< In steps/s^2, consider the microstep, default 1600
-#define SPR                1600L ///< Step Per Revolution, consider the microstep
-#define MIN_M1_ANGLE       0     ///< Minimum angle of azimuth
-#define MAX_M1_ANGLE       360   ///< Maximum angle of azimuth
-#define MIN_M2_ANGLE       0     ///< Minimum angle of elevation
-#define MAX_M2_ANGLE       360   ///< Maximum angle of elevation
-#define DEFAULT_HOME_STATE LOW  ///< Change to LOW according to Home sensor
-#define HOME_DELAY         400 ///< Time for homing Deceleration in millisecond     // orig 12000
+// #define __DEBUG__
+
+#ifdef __DEBUG__
+#define DEBUG(...) Serial.print(__VA_ARGS__)
+#else
+#define DEBUG(...)
+#endif
+
+#define SAMPLE_TIME 0.1        ///< Control loop in s
+#define RATIO 54               ///< Gear ratio of rotator gear box for V3.1 Satnogs
+#define MICROSTEP 8            ///< Set Microstep
+#define MIN_PULSE_WIDTH 20     ///< In microsecond for AccelStepper
+#define MAX_SPEED 3200         ///< In steps/s, consider the microstep, default 3200
+#define MAX_ACCELERATION 1600  ///< In steps/s^2, consider the microstep, default 1600
+#define SPR 1600L              ///< Step Per Revolution, consider the microstep
+#define MIN_M1_ANGLE 0         ///< Minimum angle of azimuth
+#define MAX_M1_ANGLE 360       ///< Maximum angle of azimuth
+#define MIN_M2_ANGLE 0         ///< Minimum angle of elevation
+#define MAX_M2_ANGLE 360       ///< Maximum angle of elevation
+#define DEFAULT_HOME_STATE LOW ///< Change to LOW according to Home sensor
+#define HOME_DELAY 400         ///< Time for homing Deceleration in millisecond     // orig 12000
 
 #include <AccelStepper.h>
 #include <Wire.h>
 #include "globals.h"
 #include "easycomm.h"
 #include "rotator_pins.h"
-//#include "rs485.h"        //Not sure why this is commented here
 #include "endstop.h"
-//#include "watchdog.h"     //Not sure why this is commented here
+#include "watchdog.h" 
 
 uint32_t t_run = 0; // run time of uC
 easycomm comm;
@@ -33,14 +40,15 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el);
 int32_t deg2step(float deg);
 float step2deg(int32_t step);
 
-void setup() {
+void setup()
+{
     // Homing switch
     switch_az.init();
     switch_el.init();
 
     // Serial Communication
     comm.easycomm_init();
-    Serial.println("DV2JB SATNOGS Rotator is ready");
+    Serial.println("SATNOGS Rotator is ready.");
 
     // Stepper Motor setup
     stepper_az.setEnablePin(MOTOR_EN);
@@ -56,12 +64,13 @@ void setup() {
     stepper_el.setMinPulseWidth(MIN_PULSE_WIDTH);
 
     // Initialize WDT
-   // wdt.watchdog_init();
+    // wdt.watchdog_init();
 }
 
-void loop() {
+void loop()
+{
     // Update WDT
-   // wdt.watchdog_reset();
+    // wdt.watchdog_reset();
 
     // Get end stop status
     rotator.switch_az = switch_az.get_state();
@@ -75,23 +84,30 @@ void loop() {
     control_el.input = step2deg(stepper_el.currentPosition());
 
     // Check rotator status
-    if (rotator.rotator_status != error) {
-        if (rotator.homing_flag == false) {
+    if (rotator.rotator_status != error)
+    {
+        if (rotator.homing_flag == false)
+        {
             // Check home flag
             rotator.control_mode = position;
             // Homing
             rotator.rotator_error = homing(deg2step(-MAX_M1_ANGLE),
                                            deg2step(-MAX_M2_ANGLE));
-            if (rotator.rotator_error == no_error) {
+            if (rotator.rotator_error == no_error)
+            {
                 // No error
                 rotator.rotator_status = idle;
                 rotator.homing_flag = true;
-            } else {
+            }
+            else
+            {
                 // Error
                 rotator.rotator_status = error;
                 rotator.rotator_error = homing_error;
             }
-        } else {
+        }
+        else
+        {
             // Control Loop
             stepper_az.moveTo(deg2step(control_az.setpoint));
             stepper_el.moveTo(deg2step(control_el.setpoint));
@@ -100,17 +116,21 @@ void loop() {
             stepper_az.run();
             stepper_el.run();
             // Idle rotator
-            if (stepper_az.distanceToGo() == 0 && stepper_el.distanceToGo() == 0) {
+            if (stepper_az.distanceToGo() == 0 && stepper_el.distanceToGo() == 0)
+            {
                 rotator.rotator_status = idle;
             }
         }
-    } else {
+    }
+    else
+    {
         // Error handler, stop motors and disable the motor driver
         stepper_az.stop();
         stepper_az.disableOutputs();
         stepper_el.stop();
         stepper_el.disableOutputs();
-        if (rotator.rotator_error != homing_error) {
+        if (rotator.rotator_error != homing_error)
+        {
             // Reset error according to error value
             rotator.rotator_error = no_error;
             rotator.rotator_status = idle;
@@ -129,51 +149,66 @@ void loop() {
     @return   _rotator_error
 */
 /**************************************************************************/
-enum _rotator_error homing(int32_t seek_az, int32_t seek_el) {
+enum _rotator_error homing(int32_t seek_az, int32_t seek_el)
+{
     bool isHome_az = false;
     bool isHome_el = false;
 
     // Move motors to "seek" position
+    DEBUG("Moving motors to the \"seek\" position.\n");
     stepper_az.moveTo(seek_az);
     stepper_el.moveTo(seek_el);
 
     // Homing loop
-    while (isHome_az == false || isHome_el == false) {
+    while (isHome_az == false || isHome_el == false)
+    {
         // Update WDT
-       // wdt.watchdog_reset();
-        if (switch_az.get_state() == true && !isHome_az) {
+        // wdt.watchdog_reset();
+        if (switch_az.get_state() == true && !isHome_az)
+        {
             // Find azimuth home
             stepper_az.moveTo(stepper_az.currentPosition());
+            DEBUG("Switch AZ detected. Setting isHome_az = true\n");
             isHome_az = true;
         }
-        if (switch_el.get_state() == true && !isHome_el) {
+        if (switch_el.get_state() == true && !isHome_el)
+        {
             // Find elevation home
             stepper_el.moveTo(stepper_el.currentPosition());
+            DEBUG("Switch EL detected. Setting isHome_el = true\n");
             isHome_el = true;
         }
-        // Check if the rotator goes out of limits or something goes wrong (in
-        // mechanical)
+        // Check if the rotator goes out of limits or something goes wrong (in mechanical)
         if ((stepper_az.distanceToGo() == 0 && !isHome_az) ||
-            (stepper_el.distanceToGo() == 0 && !isHome_el)){
+            (stepper_el.distanceToGo() == 0 && !isHome_el))
+        {
+            DEBUG("Homing error. Rotator out of limits: AZ=");
+            DEBUG(isHome_az);
+            DEBUG(" EL=");
+            DEBUG(isHome_el);
+            DEBUG("\n");
             return homing_error;
         }
+
         // Move motors to "seek" position
         stepper_az.run();
         stepper_el.run();
     }
     // Delay to Deccelerate and homing, to complete the movements
     uint32_t time = millis();
-    while (millis() - time < HOME_DELAY) {
-       // wdt.watchdog_reset();
+    while (millis() - time < HOME_DELAY)
+    {
+        // wdt.watchdog_reset();
         stepper_az.run();
         stepper_el.run();
     }
     // Set the home position and reset all critical control variables
+    DEBUG("Setting home positions.\n");
     stepper_az.setCurrentPosition(0);
     stepper_el.setCurrentPosition(0);
     control_az.setpoint = 0;
     control_el.setpoint = 0;
-
+    DEBUG("Homing complete.");
     return no_error;
 }
 
@@ -186,7 +221,8 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el) {
     @return   Steps for stepper motor driver, int32_t
 */
 /**************************************************************************/
-int32_t deg2step(float deg) {
+int32_t deg2step(float deg)
+{
     return (RATIO * SPR * deg / 360);
 }
 
@@ -199,6 +235,7 @@ int32_t deg2step(float deg) {
     @return   Degrees in float format
 */
 /**************************************************************************/
-float step2deg(int32_t step) {
+float step2deg(int32_t step)
+{
     return (360.00 * step / (SPR * RATIO));
 }

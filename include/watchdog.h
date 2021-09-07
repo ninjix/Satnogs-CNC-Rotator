@@ -70,25 +70,25 @@ ISR(WDT_vect) {
         char incomingByte;
         static uint16_t BufferCnt = 0;
         String str1, str2, str3, str4, str5, str6;
-        while (rs485.available() > 0) {
-            incomingByte = rs485.read();
+        while (Serial.available() > 0) {
+            incomingByte = Serial.read();
             if (incomingByte == '\n' || incomingByte == '\r') {
                 buffer[BufferCnt] = 0;
                 if (buffer[0] == 'G' && buffer[1] == 'S') {
                     str1 = String("GS");
                     str2 = String(rotator.rotator_status, DEC);
                     str3 = String("\n");
-                    rs485.print(str1 + str2 + str3);
+                    Serial.print(str1 + str2 + str3);
                 } else if (buffer[0] == 'G' && buffer[1] == 'E') {
                     str1 = String("GE");
                     str2 = String(rotator.rotator_error, DEC);
                     str3 = String("\n");
-                    rs485.print(str1 + str2 + str3);
+                    Serial.print(str1 + str2 + str3);
                 } else if (buffer[0] == 'R' && buffer[1] == 'B') {
                     while(1);
                 }
                 BufferCnt = 0;
-                rs485.flush();
+                Serial.flush();
             } else {
                 buffer[BufferCnt] = incomingByte;
                 BufferCnt++;

@@ -7,34 +7,21 @@
 #define DEBUG(...)
 #endif
 
-#define SAMPLE_TIME 0.1        ///< Control loop in s
-#define RATIO 54               ///< Gear ratio of rotator gear box for V3.1 Satnogs
-#define MICROSTEP 8            ///< Set Microstep
-#define MIN_PULSE_WIDTH 20     ///< In microsecond for AccelStepper
-#define MAX_SPEED 3200         ///< In steps/s, consider the microstep, default 3200
-#define MAX_ACCELERATION 1600  ///< In steps/s^2, consider the microstep, default 1600
-#define SPR 1600L              ///< Step Per Revolution, consider the microstep
-#define MIN_M1_ANGLE 0         ///< Minimum angle of azimuth
-#define MAX_M1_ANGLE 360       ///< Maximum angle of azimuth
-#define MIN_M2_ANGLE 0         ///< Minimum angle of elevation
-#define MAX_M2_ANGLE 360       ///< Maximum angle of elevation
-#define DEFAULT_HOME_STATE LOW ///< Change to LOW according to Home sensor
-#define HOME_DELAY 400         ///< Time for homing Deceleration in millisecond     // orig 12000
-
 #include <AccelStepper.h>
 #include <Wire.h>
-#include "globals.h"
-#include "easycomm.h"
-#include "rotator_pins.h"
-#include "endstop.h"
-#include "watchdog.h" 
+#include <globals.h>
+#include <helpers.h>
+#include <easycomm.h>
+#include <rotator_pins.h>
+#include <endstop.h>
+#include <watchdog.h>
 
 uint32_t t_run = 0; // run time of uC
 easycomm comm;
 AccelStepper stepper_az(1, M1IN1, M1IN2);
 AccelStepper stepper_el(1, M2IN1, M2IN2);
 endstop switch_az(SW1, DEFAULT_HOME_STATE), switch_el(SW2, DEFAULT_HOME_STATE);
-//wdt_timer wdt;
+wdt_timer wdt;
 
 enum _rotator_error homing(int32_t seek_az, int32_t seek_el);
 int32_t deg2step(float deg);
@@ -64,13 +51,13 @@ void setup()
     stepper_el.setMinPulseWidth(MIN_PULSE_WIDTH);
 
     // Initialize WDT
-    // wdt.watchdog_init();
+    wdt.watchdog_init();
 }
 
 void loop()
 {
     // Update WDT
-    // wdt.watchdog_reset();
+    wdt.watchdog_reset();
 
     // Get end stop status
     rotator.switch_az = switch_az.get_state();
@@ -210,32 +197,4 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el)
     control_el.setpoint = 0;
     DEBUG("Homing complete.");
     return no_error;
-}
-
-/**************************************************************************/
-/*!
-    @brief    Convert degrees to steps according to step/revolution, rotator
-              gear box ratio and microstep
-    @param    deg
-              Degrees in float format
-    @return   Steps for stepper motor driver, int32_t
-*/
-/**************************************************************************/
-int32_t deg2step(float deg)
-{
-    return (RATIO * SPR * deg / 360);
-}
-
-/**************************************************************************/
-/*!
-    @brief    Convert steps to degrees according to step/revolution, rotator
-              gear box ratio and microstep
-    @param    step
-              Steps in int32_t format
-    @return   Degrees in float format
-*/
-/**************************************************************************/
-float step2deg(int32_t step)
-{
-    return (360.00 * step / (SPR * RATIO));
 }

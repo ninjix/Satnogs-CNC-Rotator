@@ -16,12 +16,15 @@
 #include <endstop.h>
 #include <watchdog.h>
 
+// Instantiate objects
 uint32_t t_run = 0; // run time of uC
+wdt_timer wdt;
 easycomm comm;
+
 AccelStepper stepper_az(1, M1IN1, M1IN2);
 AccelStepper stepper_el(1, M2IN1, M2IN2);
-endstop switch_az(SW1, DEFAULT_HOME_STATE), switch_el(SW2, DEFAULT_HOME_STATE);
-wdt_timer wdt;
+endstop switch_az(SW1, DEFAULT_HOME_STATE);
+endstop switch_el(SW2, DEFAULT_HOME_STATE);
 
 enum _rotator_error homing(int32_t seek_az, int32_t seek_el);
 int32_t deg2step(float deg);
@@ -78,8 +81,9 @@ void loop()
             // Check home flag
             rotator.control_mode = position;
             // Homing
-            rotator.rotator_error = homing(deg2step(-MAX_M1_ANGLE),
-                                           deg2step(-MAX_M2_ANGLE));
+            rotator.rotator_error = homing(
+                deg2step(-MAX_M1_ANGLE),
+                deg2step(-MAX_M2_ANGLE));
             if (rotator.rotator_error == no_error)
             {
                 // No error

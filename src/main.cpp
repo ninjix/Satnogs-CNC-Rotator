@@ -1,5 +1,5 @@
 
-// #define __DEBUG__
+#define __DEBUG__
 
 #ifdef __DEBUG__
 #define DEBUG(...) Serial.print(__VA_ARGS__)
@@ -9,6 +9,7 @@
 
 #include <AccelStepper.h>
 #include <Wire.h>
+#include <QMC5883LCompass.h>
 #include <globals.h>
 #include <helpers.h>
 #include <easycomm.h>
@@ -30,14 +31,47 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el);
 int32_t deg2step(float deg);
 float step2deg(int32_t step);
 
+QMC5883LCompass compass1;
+QMC5883LCompass compass2;
+
+int getCompass1Azimuth()
+{
+    i2cMplexSelect(4);
+    compass1.read();
+    return compass1.getAzimuth();
+}
+
+int getCompass2Azimuth()
+{
+    i2cMplexSelect(5);
+    compass2.read();
+    return compass2.getAzimuth();
+}
+
 void setup()
 {
+    // Serial Communication
+    comm.easycomm_init();
+
+    // Compass
+    Serial.print("Intializing compass...\n");
+    compass1.init();
+    compass2.init();
+    // compass.setSmoothing(10, false);
+
+    Serial.print("Compass initialized.\n");
+    // Return Azimuth reading
+    Serial.print("A1: ");
+    Serial.print(getCompass1Azimuth());
+    Serial.print(", A2: ");
+    Serial.print(getCompass1Azimuth());
+    Serial.print("\n");
+
     // Homing switch
     switch_az.init();
     switch_el.init();
 
-    // Serial Communication
-    comm.easycomm_init();
+    // Ready
     Serial.println("SATNOGS Rotator is ready.");
 
     // Stepper Motor setup
@@ -196,7 +230,7 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el)
         stepper_az.run();
         stepper_el.run();
     }
-    
+
     // Set the home position and reset all critical control variables
     DEBUG("Setting home positions.\n");
     stepper_az.setCurrentPosition(0);

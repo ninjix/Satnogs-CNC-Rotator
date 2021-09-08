@@ -150,7 +150,7 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el)
     while (isHome_az == false || isHome_el == false)
     {
         // Update WDT
-        // wdt.watchdog_reset();
+        wdt.watchdog_reset();
         if (switch_az.get_state() == true && !isHome_az)
         {
             // Find azimuth home

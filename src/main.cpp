@@ -80,6 +80,7 @@ void loop()
         {
             // Check home flag
             rotator.control_mode = position;
+
             // Homing
             rotator.rotator_error = homing(
                 deg2step(-MAX_M1_ANGLE),
@@ -103,9 +104,11 @@ void loop()
             stepper_az.moveTo(deg2step(control_az.setpoint));
             stepper_el.moveTo(deg2step(control_el.setpoint));
             rotator.rotator_status = pointing;
+
             // Move azimuth and elevation motors
             stepper_az.run();
             stepper_el.run();
+
             // Idle rotator
             if (stepper_az.distanceToGo() == 0 && stepper_el.distanceToGo() == 0)
             {
@@ -193,6 +196,7 @@ enum _rotator_error homing(int32_t seek_az, int32_t seek_el)
         stepper_az.run();
         stepper_el.run();
     }
+    
     // Set the home position and reset all critical control variables
     DEBUG("Setting home positions.\n");
     stepper_az.setCurrentPosition(0);
